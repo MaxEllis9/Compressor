@@ -111,6 +111,16 @@ void BasicCompressorAudioProcessor::prepareToPlay (double sampleRate, int sample
     spec.numChannels = getTotalNumOutputChannels();
     spec.sampleRate = sampleRate;
     
+    rmsInLevelL.reset(sampleRate, 0.75);
+    rmsInLevelR.reset(sampleRate, 0.75);
+    rmsOutLevelL.reset(sampleRate, 0.75);
+    rmsOutLevelR.reset(sampleRate, 0.75);
+
+    rmsInLevelL.setCurrentAndTargetValue(-1000.f);
+    rmsInLevelR.setCurrentAndTargetValue(-1000.f);
+    rmsOutLevelL.setCurrentAndTargetValue(-1000.f);
+    rmsOutLevelR.setCurrentAndTargetValue(-1000.f);
+    
     compressor.prepare(spec);
     inputGain.prepare(spec);
     outputGain.prepare(spec);
@@ -181,9 +191,26 @@ void BasicCompressorAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     if(bypassPtr->get() != true)
     {
         inputGain.process(context);
+        storeRmsValue(rmsInLevelL, buffer, 0);
+        storeRmsValue(rmsInLevelR, buffer, 1);
+        
         compressor.process(context);
+        
         waveViewer.pushBuffer(buffer);
+        
         outputGain.process(context);
+        storeRmsValue(rmsOutLevelL, buffer, 0);
+        storeRmsValue(rmsOutLevelR, buffer, 1);
+    }
+    else
+    {
+        waveViewer.pushBuffer(buffer);
+        
+        rmsInLevelL.setCurrentAndTargetValue(-1000.f);
+        rmsInLevelR.setCurrentAndTargetValue(-1000.f);
+        rmsOutLevelL.setCurrentAndTargetValue(-1000.f);
+        rmsOutLevelR.setCurrentAndTargetValue(-1000.f);
+
     }
 }
 
@@ -259,6 +286,55 @@ AudioProcessorValueTreeState::ParameterLayout BasicCompressorAudioProcessor::cre
     
     return layout;
     
+}
+
+float BasicCompressorAudioProcessor::getRmsLevel(bool inOut, const int channel)
+{
+    if(inOut)
+    {
+        if(channel == 0)
+        {
+            return rmsInLevelL.getCurrentValue();
+        }
+        if(channel == 1)
+        {
+            return rmsInLevelR.getCurrentValue();
+        }
+        else
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        if(channel == 0)
+        {
+            return rmsOutLevelL.getCurrentValue();
+        }
+        if(channel == 1)
+        {
+            return rmsOutLevelR.getCurrentValue();
+        }
+        else
+        {
+            return 0;
+        }
+    }
+}
+
+void BasicCompressorAudioProcessor::storeRmsValue(LinearSmoothedValue<float>& rmsMember, juce::AudioBuffer<float>& buffer, const int channel)
+{
+    rmsMember.skip(buffer.getNumSamples());
+    
+    auto value = Decibels::gainToDecibels(buffer.getRMSLevel(channel, 0, buffer.getNumSamples()));
+    if (value < rmsMember.getCurrentValue())
+    {
+        rmsMember.setTargetValue(value);
+    }
+    else
+    {
+        rmsMember.setCurrentAndTargetValue(value);
+    }
 }
 
 //==============================================================================

@@ -66,9 +66,6 @@ public:
     };
     
     juce::AudioVisualiserComponent waveViewer;
-
-private:
-    juce::dsp::Compressor<float> compressor;
     
     juce::AudioParameterFloat* attackPtr {nullptr};
     juce::AudioParameterFloat* releasePtr {nullptr};
@@ -77,6 +74,15 @@ private:
     juce::AudioParameterFloat* outputGainPtr {nullptr};
     juce::AudioParameterChoice* ratioPtr {nullptr};
     juce::AudioParameterBool* bypassPtr {nullptr};
+    
+    float getRmsLevel(bool inOut, const int channel);
+
+private:
+    void storeRmsValue(LinearSmoothedValue<float>& rmsMember, juce::AudioBuffer<float>& buffer, const int channel);
+    
+    juce::dsp::Compressor<float> compressor;
+    
+    LinearSmoothedValue<float> rmsInLevelL, rmsInLevelR, rmsOutLevelL, rmsOutLevelR;
     
     juce::dsp::Gain<float> inputGain, outputGain;
     

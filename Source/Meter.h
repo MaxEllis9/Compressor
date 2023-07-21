@@ -2,17 +2,12 @@
 
 #include <JuceHeader.h>
 
-class Meter : public Component, public Timer
+class Meter : public Component
 {
-    Meter(std::function<float()>&& valueFunction) : valueSupplier(std::move(valueFunction))
-    {
-        startTimer(24);
-    }
     
 public:
     void paint(Graphics& g) override
     {
-        const auto level = valueSupplier();
         auto bounds = getLocalBounds();
         
         g.setColour(Colours::black);
@@ -31,12 +26,14 @@ public:
         gradient.addColour(0.5, Colours::yellow);
     }
     
-    void timerCallback() override
+    void setLevel(const float value)
     {
-        repaint();
+        level = value;
     }
     
-    std::function<float()> valueSupplier;
+private:
     
+    float level = -60.f;
+        
     ColourGradient gradient;
 };
